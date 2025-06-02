@@ -89,28 +89,6 @@ const createScene = () => {
     scene.environmentIntensity = 0.8; // Intensité du reflet
     scene.clearColor = new BABYLON.Color4(0, 0, 0, 1); // Fond noir
 
-    // BABYLON.SceneLoader.ImportMesh(
-    //     null,
-    //     "numbers/",      // dossier contenant "0.glb"
-    //     "0.glb",         // nom du fichier
-    //     scene,
-    //     function (meshes) {
-    //         const zeroMesh = meshes[0]; // souvent le premier mesh
-    //         zeroMesh.position = new BABYLON.Vector3(0, 1, 0);
-    //         zeroMesh.scaling = new BABYLON.Vector3(20, 20, 20);
-
-    //         // 🔵 Créer un nouveau matériau coloré
-    //         const zeroMaterial = new BABYLON.StandardMaterial("zeroMat", scene);
-    //         zeroMaterial.diffuseColor = new BABYLON.Color3(1, 0.1, 0.1); // couleur cyan
-    //         zeroMaterial.emissiveColor = new BABYLON.Color3(0, 1, 1); // pour un effet glow
-
-    //         // 🟢 Appliquer ce matériau au mesh
-    //         zeroMesh.material = zeroMaterial;
-    //     }
-    // );
-
-
-
     // texture du paddle de gauche 
     const rightPaddleMaterial = new BABYLON.PBRMaterial("rightPaddleMat", scene);
     rightPaddleMaterial.metallic = 1.0;
@@ -188,26 +166,17 @@ const createScene = () => {
     sphere.isVisible = false;
     scene.explosionSpheres.push(sphere);
 }
+        // var scale   = 0.1, MeshWriter, text1, text2, text3, text4;
+        // if ( typeof TYPE === "undefined" ) {
+        //     fauxLoad()
+        // }
+        // write()
+        // return scene;
 
-    let Writer = MeshWriter(this.scene, { scale: 1, defaultFont: "Arial" });
-let textMesh = new Writer("Hello World", {
-  "font-family": "Arial",
-  "letter-height": 30,
-  "letter-thickness": 120,
-  color: "#1C3870",
-  anchor: "center",
-  colors: {
-    diffuse: "#F0F0F0",
-    specular: "#000000",
-    ambient: "#F0F0F0",
-    emissive: "#ff00f0",
-  },
-  position: {
-    x: 0,
-    y: 10,
-    z: 0,
-  },
-});
+        // function write () {
+        //     Writer = BABYLON.MeshWriter(scene, {scale:scale,defaultFont:"Comic"});
+        //     text1  = new Writer( "0    :    0",{ "anchor": "center", "letter-height": 40, "color": "#F0F8FF", "position": { "z": -14, "y": 0.1} });
+        // }
     return scene;
 };
 

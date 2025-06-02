@@ -1,0 +1,6 @@
+1-decompte au debut en interaction avec les panneaux lumineux
+2-chagement de couleur de ces panneaux llorsque un point a ete encaisse
+3-affichage du score qui sort du sol en tournant sur lui meme
+4-camera qui bouge en fonction de la balle
+5- mode loc screen ou pas
+6-mode pov en dans un couloir noir avec seulement une balle lumineuse (contre IA ?)
