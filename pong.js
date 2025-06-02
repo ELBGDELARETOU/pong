@@ -1,22 +1,10 @@
 const canvas = document.getElementById("renderCanvas");
 const engine = new BABYLON.Engine(canvas, true);
 
-
-let terrainExploder = null;
-
-
-
 const boxes = [];
 const playWidth = 19;
 const playHeight = 3;
 const ballSpeed = 0.2;
-
-function explodeTerrainTiny(scene) {
-  if (!terrainExploder) return;
-  const power = 8;      // Ajuste entre 0 et ~20
-  terrainExploder.explode(power);
-}
-
 
 function playLightWave(startIndex, direction = 1) {
     const delay = 100;
@@ -41,9 +29,6 @@ function playLightWave(startIndex, direction = 1) {
         }, delay * i);
     }
 }
-
-
-
 
 function createLight(position, rotation, color, name, scene) {
     color = new BABYLON.Color3(0.7, 0.2, 0.4);
@@ -153,29 +138,7 @@ const createScene = () => {
     leftPaddle.position.y = 0.5;
     leftPaddle.material = leftPaddleMaterial;
 
-    const ground = BABYLON.MeshBuilder.CreateGround("ground", {
-  width: 20,
-  height: 10,
-  subdivisions: 20    // ← beaucoup plus de faces pour l’explosion
-}, scene);
-// 1️⃣ Créer un nuage de fragments sphériques autour du sol
-const fragmentCount = 200;
-const fragments = [];
-for (let i = 0; i < fragmentCount; i++) {
-  // Sphere de taille aléatoire
-  const frag = BABYLON.MeshBuilder.CreateSphere(
-    "frag" + i,
-    { diameter: 0.5 + Math.random() * 0.5, segments: 4 },
-    scene
-  );
-  // Positionner au hasard autour du ground
-  const rand = BABYLON.Vector3.Random(-1, 1).normalize();
-  frag.position = ground.position.add(rand.scale( Math.max(ground._width, ground._height) / 2 + 1 ));
-  fragments.push(frag);
-}
-
-// 2️⃣ Instancier l’exploder global
-terrainExploder = new BABYLON.MeshExploder(fragments, ground);
+    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 20,height: 10}, scene);
 
     const mirrorMat = new BABYLON.PBRMaterial("mirror", scene);
     mirrorMat.metallic = 1.0;
@@ -194,6 +157,7 @@ terrainExploder = new BABYLON.MeshExploder(fragments, ground);
     scene
 );
     camera.attachControl(canvas, true);
+    scene.camera = camera;
     createLight(new BABYLON.Vector3(-8, 5.2, 5), new BABYLON.Vector3(0, 0, 0), BABYLON.Color3.White(), "light1" ,scene);
     createLight(new BABYLON.Vector3(-2.7, 5.2, 5), new BABYLON.Vector3(0, 0, 0), BABYLON.Color3.Green(), "light4",scene);
     createLight(new BABYLON.Vector3(2.7, 5.2, 5), new BABYLON.Vector3(0, 0, 0), BABYLON.Color3.Green(), "light3",scene);
@@ -208,6 +172,42 @@ terrainExploder = new BABYLON.MeshExploder(fragments, ground);
     glowMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1); // blanc lumineux
     ball.material = glowMaterial;
 
+    scene.explosionSpheres = [];
+
+    const numberOfSpheres = 500;
+    for (let i = 0; i < numberOfSpheres; ++i) {
+    const sphere = BABYLON.MeshBuilder.CreateSphere("particle", {
+        diameter: 0.2 + Math.random() * 0.4,
+        segments: 6
+    }, scene);
+
+    const mat = new BABYLON.StandardMaterial("mat" + i, scene);
+    // mat.emissiveColor = new BABYLON.Color3(Math.random(), Math.random(), Math.random());
+    sphere.material = mat;
+
+    sphere.isVisible = false;
+    scene.explosionSpheres.push(sphere);
+}
+
+    let Writer = MeshWriter(this.scene, { scale: 1, defaultFont: "Arial" });
+let textMesh = new Writer("Hello World", {
+  "font-family": "Arial",
+  "letter-height": 30,
+  "letter-thickness": 120,
+  color: "#1C3870",
+  anchor: "center",
+  colors: {
+    diffuse: "#F0F0F0",
+    specular: "#000000",
+    ambient: "#F0F0F0",
+    emissive: "#ff00f0",
+  },
+  position: {
+    x: 0,
+    y: 10,
+    z: 0,
+  },
+});
     return scene;
 };
 
@@ -232,6 +232,10 @@ engine.runRenderLoop(() => {
     const maxZ = 4.5;
     const accelerationFactor = 1.05;
 
+    const ball = scene.ball;
+    const velocity = scene.ballVelocity;
+
+    // === Contrôles des paddles ===
     if (keys["s"] && rightPaddle.position.z - ballSpeed >= minZ) {
         rightPaddle.position.z -= ballSpeed;
     }
@@ -244,52 +248,79 @@ engine.runRenderLoop(() => {
     if (keys["i"] && leftPaddle.position.z + ballSpeed <= maxZ) {
         leftPaddle.position.z += ballSpeed;
     }
-    const ball = scene.ball;
-    const velocity = scene.ballVelocity;
 
+    // === Mouvement de la balle ===
     ball.position.addInPlace(velocity);
 
-    // Rebond sur les murs haut/bas
+    // Rebond haut/bas
     if (ball.position.z <= minZ || ball.position.z >= maxZ) {
         velocity.z *= -1;
     }
 
-    //     // Rebond paddle gauche
-    if (
-        ball.intersectsMesh(leftPaddle, false) &&
-        velocity.x > 0
-    ) {
-        velocity.x *= -1 * accelerationFactor;
-
-        // Ajouter un petit effet d'angle selon la position de contact
+    // Collision paddle gauche
+    if (ball.intersectsMesh(leftPaddle, false) && velocity.x > 0) {
+        velocity.x *= -accelerationFactor;
         const offset = ball.position.z - leftPaddle.position.z;
         velocity.z = offset * 0.1 * accelerationFactor;
-        playLightWave(3, -1); 
+        playLightWave(3, -1);
     }
 
-    // // Rebond paddle droit
-    if (
-        ball.intersectsMesh(rightPaddle, false) &&
-        velocity.x < 0
-    ) {
-        velocity.x *= -1 * accelerationFactor;
-
+    // Collision paddle droit
+    if (ball.intersectsMesh(rightPaddle, false) && velocity.x < 0) {
+        velocity.x *= -accelerationFactor;
         const offset = ball.position.z - rightPaddle.position.z;
         velocity.z = offset * 0.1 * accelerationFactor;
-        playLightWave(0, 1); 
+        playLightWave(0, 1);
     }
-    if (Math.abs(scene.ball.position.x) > playWidth/2 + 1) {
-    explodeTerrainTiny(scene.ground, scene);
-    // reset de la balle…
-}
-        // Reset si la balle sort
-    if (scene.ball && scene.ballVelocity && Math.abs(scene.ball.position.x) > playWidth / 2 + 1) {
+
+    // === Sortie de balle (but) ===
+  if (Math.abs(scene.ball.position.x) > playWidth / 2 + 1) {
+    const explosionDuration = 1000;
+    const startTime = Date.now();
+
+    const activeSpheres = [];
+
+    scene.explosionSpheres.forEach(sphere => {
+        sphere.position = scene.ball.position.clone();
+        sphere.isVisible = true;
+
+        const dir = new BABYLON.Vector3(
+            (Math.random() - 0.5) * 2,
+            (Math.random() - 0.5) * 2,
+            (Math.random() - 0.5) * 2
+        ).normalize().scale(0.5 + Math.random() * 1.5);
+
+        activeSpheres.push({ sphere, dir });
+    });
+
+    const explosionCallback = () => {
+        const elapsed = Date.now() - startTime;
+        if (elapsed > explosionDuration) {
+            activeSpheres.forEach(obj => {
+                obj.sphere.isVisible = false;
+            });
+            scene.onBeforeRenderObservable.removeCallback(explosionCallback);
+        } else {
+            activeSpheres.forEach(obj => {
+                obj.sphere.position.addInPlace(obj.dir);
+            });
+        }
+    };
+
+    scene.onBeforeRenderObservable.add(explosionCallback);
+
+    // Reset de la balle
     scene.ball.position = new BABYLON.Vector3(0, 0.5, 0);
-    scene.ballVelocity = new BABYLON.Vector3((Math.random() > 0.5 ? 1 : -1) * 0.1, 0, (Math.random() - 0.5) * 0.04);
+    scene.ballVelocity = new BABYLON.Vector3(
+        (Math.random() > 0.5 ? 1 : -1) * 0.1,
+        0,
+        (Math.random() - 0.5) * 0.04
+    );
 }
 
     scene.render();
 });
+
 
 
 window.addEventListener("resize", () => engine.resize());
