@@ -6,6 +6,10 @@ const playWidth = 19;
 const playHeight = 3;
 const ballSpeed = 0.2;
 
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function playLightWave(startIndex, direction = 1) {
     const delay = 100;
     const color = new BABYLON.Color3(0.7, 0.2, 0.4);
@@ -29,6 +33,46 @@ function playLightWave(startIndex, direction = 1) {
         }, delay * i);
     }
 }
+
+async function countdown() {
+    const delay = 500;
+    const green = new BABYLON.Color3(0.0, 1.0, 0.0);
+    const pink = new BABYLON.Color3(0.7, 0.2, 0.4);
+
+    for (let i = 0; i < boxes.length; i++) {
+        const { box, light, material } = boxes[i];
+
+        // Allume en vert
+        material.emissiveColor = green;
+        light.diffuse = green;
+        light.intensity = 3;
+
+        await sleep(delay); // attend un peu
+
+        // Restaure le rose
+        material.emissiveColor = pink;
+        light.diffuse = pink;
+        light.intensity = 2;
+    }
+
+    // À la fin : allume tout en vert
+    for (let i = 0; i < boxes.length; i++) {
+        const { material, light } = boxes[i];
+        material.emissiveColor = green;
+        light.diffuse = green;
+    }
+
+    await sleep(delay);
+
+    // Puis repasse en rose
+    for (let i = 0; i < boxes.length; i++) {
+        const { material, light } = boxes[i];
+        material.emissiveColor = pink;
+        light.diffuse = pink;
+    }
+}
+
+
 
 function createLight(position, rotation, color, name, scene) {
     color = new BABYLON.Color3(0.7, 0.2, 0.4);
@@ -83,7 +127,7 @@ function createLight(position, rotation, color, name, scene) {
 
 
 
-const createScene = () => {
+function createScene() {
     const scene = new BABYLON.Scene(engine);
     scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://assets.babylonjs.com/environments/studio.env", scene);
     scene.environmentIntensity = 0.8; // Intensité du reflet
@@ -141,6 +185,9 @@ const createScene = () => {
     createLight(new BABYLON.Vector3(2.7, 5.2, 5), new BABYLON.Vector3(0, 0, 0), BABYLON.Color3.Green(), "light3",scene);
     createLight(new BABYLON.Vector3(8, 5.2, 5), new BABYLON.Vector3(0, 0, 0), BABYLON.Color3.Red(), "light2",scene);
     
+    let ctd = 0;
+    if (ctd++ == 0)
+        countdown();
     const ball = BABYLON.MeshBuilder.CreateSphere("ball", { diameter: 0.3 }, scene);
     ball.position = new BABYLON.Vector3(0, 0.5, 0);
     scene.ball = ball;
@@ -200,10 +247,8 @@ engine.runRenderLoop(() => {
     const minZ = -4.5;
     const maxZ = 4.5;
     const accelerationFactor = 1.05;
-
     const ball = scene.ball;
     const velocity = scene.ballVelocity;
-
     // === Contrôles des paddles ===
     if (keys["s"] && rightPaddle.position.z - ballSpeed >= minZ) {
         rightPaddle.position.z -= ballSpeed;
