@@ -6,23 +6,7 @@ const playWidth = 19;
 const playHeight = 3;
 const ballSpeed = 0.2;
 let isWaitingAfterGoal = false;
-
-
-function createRadialGradientTexture(size) {
-    const canvas = document.createElement("canvas");
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext("2d");
-
-    const gradient = ctx.createRadialGradient(size/2, size/2, size/4, size/2, size/2, size/2);
-    gradient.addColorStop(0, "rgba(255, 255, 255, 0.8)"); // blanc opaque au centre
-    gradient.addColorStop(1, "rgba(255, 255, 255, 0)");   // transparent à l'extérieur
-
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, size, size);
-
-    return new BABYLON.DynamicTexture("radialGradient", canvas, scene, false);
-}
+let gameStarted = false;
 
 
 function sleep(ms) {
@@ -31,7 +15,7 @@ function sleep(ms) {
 
 function playLightWave(startIndex, direction = 1) {
     const delay = 100;
-    const color = new BABYLON.Color3(0.7, 0.2, 0.4);
+    const color = new BABYLON.Color3(1.0, 0.1, 0.5);
 
     for (let i = 0; i < boxes.length; i++) {
         const index = startIndex + i * direction;
@@ -55,26 +39,23 @@ function playLightWave(startIndex, direction = 1) {
 
 async function countdown() {
     const delay = 500;
-    const green = new BABYLON.Color3(0.0, 1.0, 0.0);
-    const pink = new BABYLON.Color3(0.7, 0.2, 0.4);
+    const green = new BABYLON.Color3(0.2, 1.0, 0.2);
+    const pink =  new BABYLON.Color3(1.0, 0.1, 0.5);
 
     for (let i = 0; i < boxes.length; i++) {
         const { box, light, material } = boxes[i];
 
-        // Allume en vert
         material.emissiveColor = green;
         light.diffuse = green;
         light.intensity = 3;
 
-        await sleep(delay); // attend un peu
+        await sleep(delay);
 
-        // Restaure le rose
         material.emissiveColor = pink;
         light.diffuse = pink;
         light.intensity = 2;
     }
 
-    // À la fin : allume tout en vert
     for (let i = 0; i < boxes.length; i++) {
         const { material, light } = boxes[i];
         material.emissiveColor = green;
@@ -83,7 +64,6 @@ async function countdown() {
 
     await sleep(delay);
 
-    // Puis repasse en rose
     for (let i = 0; i < boxes.length; i++) {
         const { material, light } = boxes[i];
         material.emissiveColor = pink;
@@ -115,7 +95,7 @@ function createLight(position, rotation, color, name, scene) {
     light.specular = color;
     light.intensity = 2;
 
-    boxes.push({ box, light, material: lightMaterial }); // on garde une référence pour plus tard
+    boxes.push({ box, light, material: lightMaterial });
 }
 
 
@@ -123,16 +103,15 @@ function createLight(position, rotation, color, name, scene) {
 function createScene() {
     const scene = new BABYLON.Scene(engine);
     // scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://assets.babylonjs.com/environments/studio.env", scene);
-    scene.environmentIntensity = 0.8; // Intensité du reflet
+    scene.environmentIntensity = 0.8;
     scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
-
-    // texture du paddle de gauche 
+    
     const rightPaddleMaterial = new BABYLON.PBRMaterial("rightPaddleMat", scene);
     rightPaddleMaterial.metallic = 1.0;
     rightPaddleMaterial.roughness = 0.2;
     rightPaddleMaterial.albedoColor = new BABYLON.Color3(0.1, 0.6, 1); // Bleu néon
     rightPaddleMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.6, 1); // même couleur pour le glow
-    // texture du paddle de gauche 
+   
     const leftPaddleMaterial = new BABYLON.PBRMaterial("leftPaddleMat", scene);
     leftPaddleMaterial.metallic = 1.0;
     leftPaddleMaterial.roughness = 0.2;
@@ -141,13 +120,11 @@ function createScene() {
     
     const paddleOptions = { width: 0.2, height: 0.3, depth: 1 };
 
-    // Paddle de droite
     const rightPaddle = BABYLON.MeshBuilder.CreateBox("rightPaddle", paddleOptions, scene);
     rightPaddle.position.x = -playWidth / 2 + 0.2;
     rightPaddle.position.y = 0.5;
     rightPaddle.material = rightPaddleMaterial;
 
-    // Paddle de gauche
     const leftPaddle = BABYLON.MeshBuilder.CreateBox("leftPaddle", paddleOptions, scene);
     leftPaddle.position.x = playWidth / 2 + 0.2;
     leftPaddle.position.y = 0.5;
@@ -181,13 +158,25 @@ function createScene() {
     let ctd = 0;
     if (ctd++ == 0)
         countdown();
+
     const ball = BABYLON.MeshBuilder.CreateSphere("ball", { diameter: 0.3 }, scene);
+    
+    setTimeout(() => {
+    scene.ballVelocity = new BABYLON.Vector3(
+        (Math.random() > 0.5 ? 1 : -1) * 0.2,
+        0,
+        (Math.random() - 0.5) * 0.04
+    );
+    gameStarted = true;
+    console.log("Balle lancée après 300 ms");
+    }, 2500);
+    
     ball.position = new BABYLON.Vector3(0, 0.5, 0);
     scene.ball = ball;
-    scene.ballVelocity = new BABYLON.Vector3(0.1, 0, 0.02);
+    scene.ballVelocity = new BABYLON.Vector3(0, 0, 0);
 
     const glowMaterial = new BABYLON.StandardMaterial("glowMaterial", scene);
-    glowMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1); // blanc lumineux
+    glowMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1);
     ball.material = glowMaterial;
 
     scene.explosionSpheres = [];
@@ -205,6 +194,7 @@ function createScene() {
 
     sphere.isVisible = false;
     scene.explosionSpheres.push(sphere);
+
 }
     return scene;
 };
@@ -227,17 +217,15 @@ const rightPaddle = scene.getMeshByName("rightPaddle");
 
 async function resetBallWithDelay() {
     scene.ball.position = new BABYLON.Vector3(0, 0.5, 0);
-    scene.ballVelocity.set(0, 0, 0); // Arrête la balle
-    await countdown();               // Lumières vertes / roses si tu veux
-    await sleep(200);              // Attente de 3 secondes
+    scene.ballVelocity.set(0, 0, 0);
+    await countdown();
+    await sleep(200);
 
-    // Relance la balle après le délai
     scene.ballVelocity = new BABYLON.Vector3(
-        (Math.random() > 0.5 ? 1 : -1) * 0.1,
+        (Math.random() > 0.5 ? 1 : -1) * 0.2,
         0,
         (Math.random() - 0.5) * 0.04
     );
-
     isWaitingAfterGoal = false;
 }
 
@@ -248,7 +236,7 @@ engine.runRenderLoop(() => {
     const accelerationFactor = 1.05;
     const ball = scene.ball;
     const velocity = scene.ballVelocity;
-    // === Contrôles des paddles ===
+
     if (keys["s"] && rightPaddle.position.z - ballSpeed >= minZ) {
         rightPaddle.position.z -= ballSpeed;
     }
@@ -261,16 +249,15 @@ engine.runRenderLoop(() => {
     if (keys["i"] && leftPaddle.position.z + ballSpeed <= maxZ) {
         leftPaddle.position.z += ballSpeed;
     }
-
-    // === Mouvement de la balle ===
+    
+    if (gameStarted) {
     ball.position.addInPlace(velocity);
+    }
 
-    // Rebond haut/bas
     if (ball.position.z <= minZ || ball.position.z >= maxZ) {
         velocity.z *= -1;
     }
 
-    // Collision paddle gauche
     if (ball.intersectsMesh(leftPaddle, false) && velocity.x > 0) {
         velocity.x *= -accelerationFactor;
         const offset = ball.position.z - leftPaddle.position.z;
@@ -278,7 +265,6 @@ engine.runRenderLoop(() => {
         playLightWave(3, -1);
     }
 
-    // Collision paddle droit
     if (ball.intersectsMesh(rightPaddle, false) && velocity.x < 0) {
         velocity.x *= -accelerationFactor;
         const offset = ball.position.z - rightPaddle.position.z;
@@ -286,25 +272,24 @@ engine.runRenderLoop(() => {
         playLightWave(0, 1);
     }
 
-    // === Sortie de balle (but) ===
-if (!isWaitingAfterGoal && Math.abs(scene.ball.position.x) > playWidth / 2 + 1) {
-    isWaitingAfterGoal = true;
+    if (!isWaitingAfterGoal && Math.abs(scene.ball.position.x) > playWidth / 2 + 1) {
+        isWaitingAfterGoal = true;
 
-    const explosionDuration = 1000;
-    const startTime = Date.now();
-    const activeSpheres = [];
+        const explosionDuration = 1000;
+        const startTime = Date.now();
+        const activeSpheres = [];
 
-    scene.explosionSpheres.forEach(sphere => {
-        sphere.position = scene.ball.position.clone();
-        sphere.isVisible = true;
+        scene.explosionSpheres.forEach(sphere => {
+            sphere.position = scene.ball.position.clone();
+            sphere.isVisible = true;
 
-        const dir = new BABYLON.Vector3(
-            (Math.random() - 0.5) * 2,
-            (Math.random() - 0.5) * 2,
-            (Math.random() - 0.5) * 2
-        ).normalize().scale(0.5 + Math.random() * 1.5);
+            const dir = new BABYLON.Vector3(
+                (Math.random() - 0.5) * 2,
+                (Math.random() - 0.5) * 2,
+                (Math.random() - 0.5) * 2
+            ).normalize().scale(0.5 + Math.random() * 1.5);
 
-        activeSpheres.push({ sphere, dir });
+            activeSpheres.push({ sphere, dir });
     });
 
     const explosionCallback = () => {
@@ -325,8 +310,6 @@ if (!isWaitingAfterGoal && Math.abs(scene.ball.position.x) > playWidth / 2 + 1) 
 
     resetBallWithDelay();
 }
-
-
     scene.render();
 });
 
