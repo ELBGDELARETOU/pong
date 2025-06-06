@@ -8,7 +8,6 @@ const ballSpeed = 0.2;
 let isWaitingAfterGoal = false;
 let gameStarted = false;
 
-
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -74,7 +73,7 @@ async function countdown() {
 
 
 function createLight(position, rotation, color, name, scene) {
-    color = new BABYLON.Color3(0.7, 0.2, 0.4);
+    color = new BABYLON.Color3(1.0, 0.1, 0.5);
     const box = BABYLON.MeshBuilder.CreateBox("box" + name, {
         width: 4,
         height: 10,
@@ -102,9 +101,10 @@ function createLight(position, rotation, color, name, scene) {
 
 function createScene() {
     const scene = new BABYLON.Scene(engine);
-    // scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://assets.babylonjs.com/environments/studio.env", scene);
-    scene.environmentIntensity = 0.8;
-    scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
+    scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://assets.babylonjs.com/environments/studio.env", scene);
+    // scene.environmentIntensity = 0
+    // scene.environmentTexture = null;
+    // scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
     
     const rightPaddleMaterial = new BABYLON.PBRMaterial("rightPaddleMat", scene);
     rightPaddleMaterial.metallic = 1.0;
@@ -135,6 +135,7 @@ function createScene() {
     const mirrorMat = new BABYLON.PBRMaterial("mirror", scene);
     mirrorMat.metallic = 1.0;
     mirrorMat.roughness = 0.1;
+    mirrorMat.environmentTexture = null;
     mirrorMat.albedoColor = new BABYLON.Color3(0, 0, 0);
     ground.material = mirrorMat;
     scene.ground = ground;
@@ -151,9 +152,9 @@ function createScene() {
     camera.attachControl(canvas, true);
     scene.camera = camera;
     createLight(new BABYLON.Vector3(-8, 5.2, 5), new BABYLON.Vector3(0, 0, 0), BABYLON.Color3.White(), "light1" ,scene);
-    createLight(new BABYLON.Vector3(-2.7, 5.2, 5), new BABYLON.Vector3(0, 0, 0), BABYLON.Color3.Green(), "light4",scene);
-    createLight(new BABYLON.Vector3(2.7, 5.2, 5), new BABYLON.Vector3(0, 0, 0), BABYLON.Color3.Green(), "light3",scene);
-    createLight(new BABYLON.Vector3(8, 5.2, 5), new BABYLON.Vector3(0, 0, 0), BABYLON.Color3.Red(), "light2",scene);
+    createLight(new BABYLON.Vector3(-2.7, 5.2, 5), new BABYLON.Vector3(0, 0, 0), BABYLON.Color3.White(), "light4",scene);
+    createLight(new BABYLON.Vector3(2.7, 5.2, 5), new BABYLON.Vector3(0, 0, 0), BABYLON.Color3.White(), "light3",scene);
+    createLight(new BABYLON.Vector3(8, 5.2, 5), new BABYLON.Vector3(0, 0, 0), BABYLON.Color3.White(), "light2",scene);
     
     let ctd = 0;
     if (ctd++ == 0)
@@ -168,7 +169,6 @@ function createScene() {
         (Math.random() - 0.5) * 0.04
     );
     gameStarted = true;
-    console.log("Balle lancée après 300 ms");
     }, 2500);
     
     ball.position = new BABYLON.Vector3(0, 0.5, 0);
@@ -196,6 +196,22 @@ function createScene() {
     scene.explosionSpheres.push(sphere);
 
 }
+    fetch("https://assets.babylonjs.com/fonts/Droid Sans_Regular.json")
+    .then(response => response.json())
+    .then(fontData => {
+    const writer = new MeshWriter(scene, {
+      scale: 0.01,
+      font: fontData
+    });
+    const myText = writer.addText("HELLO WORLD", {
+      anchor: MeshWriter.Anchor.Center,
+      position: new BABYLON.Vector3(0, 2, 0),
+      depth: 0.2,
+      color: "#ff66cc"
+    });
+    scene.addMesh(myText);
+  });
+
     return scene;
 };
 
