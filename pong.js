@@ -101,10 +101,10 @@ function createLight(position, rotation, color, name, scene) {
 
 function createScene() {
     const scene = new BABYLON.Scene(engine);
-    scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://assets.babylonjs.com/environments/studio.env", scene);
+    // scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://assets.babylonjs.com/environments/studio.env", scene);
     // scene.environmentIntensity = 0
     // scene.environmentTexture = null;
-    // scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
+    scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
     
     const rightPaddleMaterial = new BABYLON.PBRMaterial("rightPaddleMat", scene);
     rightPaddleMaterial.metallic = 1.0;
