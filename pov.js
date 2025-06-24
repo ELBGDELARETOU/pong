@@ -2,8 +2,9 @@ const canvas = document.getElementById("renderCanvas");
 const engine = new BABYLON.Engine(canvas, true);
 
 let ballVelocity = new BABYLON.Vector3(0.1, 0.2, 0.3); // X, Y, Z
-const gravity = -0.008;
+const gravity = -0.003;
 const iaSpeed = 0.2; // Vitesse de réaction de l'IA
+let targetPaddlePos = new BABYLON.Vector3();
 
 function createBuildingsAroundField(scene, tunnelWidth, tunnelLength) {
     const baseSize = 5;
@@ -40,7 +41,6 @@ function createBuildingsAroundField(scene, tunnelWidth, tunnelLength) {
 
     building.rotation.y = (Math.random() - 0.5) * 0.3;
 
-    // Utiliser GridMaterial pour effet fenetres
     const gridMat = new BABYLON.GridMaterial("gridMat", scene);
     gridMat.majorUnitFrequency = 3; // Nombre de grandes lignes (fenêtres principales)
     gridMat.minorUnitVisibility = 0.5; // Visibilité des petites lignes (détails)
@@ -56,7 +56,6 @@ function createBuildingsAroundField(scene, tunnelWidth, tunnelLength) {
 }
 
 
-    // --- Derrière le terrain (plusieurs rangées en Z vers l’arrière) ---
     for (let row = 0; row < depthRows; row++) {
         const zPos = halfLength + baseSize / 2 + 1 + row * baseSpacing;
         for (let x = -halfWidth + baseSize / 2; x <= halfWidth - baseSize / 2; x += baseSpacing) {
@@ -69,7 +68,6 @@ function createBuildingsAroundField(scene, tunnelWidth, tunnelLength) {
         }
     }
 
-    // --- Côté gauche (plusieurs rangées en profondeur sur X fixe) ---
     for (let row = 0; row < depthRows; row++) {
         const xPos = -halfWidth - baseSize / 2 - 1 - row * baseSpacing;
         for (let z = -halfLength + baseSize / 2; z <= halfLength - baseSize / 2; z += baseSpacing) {
@@ -82,7 +80,6 @@ function createBuildingsAroundField(scene, tunnelWidth, tunnelLength) {
         }
     }
 
-    // --- Côté droit (plusieurs rangées en profondeur sur X fixe) ---
     for (let row = 0; row < depthRows; row++) {
         const xPos = halfWidth + baseSize / 2 + 1 + row * baseSpacing;
         for (let z = -halfLength + baseSize / 2; z <= halfLength - baseSize / 2; z += baseSpacing) {
@@ -95,7 +92,6 @@ function createBuildingsAroundField(scene, tunnelWidth, tunnelLength) {
         }
     }
 
-    // --- Bâtiments aux angles (coins) ---
     const cornerPositions = [
         { x: -halfWidth - baseSize / 2 - 1, z: halfLength + baseSize / 2 + 1 },
         { x: halfWidth + baseSize / 2 + 1, z: halfLength + baseSize / 2 + 1 },
@@ -125,7 +121,6 @@ function createScene() {
     chromeMaterial.emissiveColor = new BABYLON.Color3(0.2, 0.2, 0.2); // Légère lueur
     chromeMaterial.alpha = 1; // Opaque
 
-   // Lumière hémisphérique pour un éclairage global doux (lumière du ciel + rebond au sol)
     const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
     hemiLight.intensity = 0.6;
     hemiLight.diffuse = new BABYLON.Color3(0.6, 0.6, 0.8); // lumière bleutée
@@ -140,7 +135,7 @@ function createScene() {
     pointLight.range = 60; // rayon d’éclairage
 
 
-    const camera = new BABYLON.UniversalCamera("camera", new BABYLON.Vector3(0, 5, -40), scene);
+    const camera = new BABYLON.UniversalCamera("camera", new BABYLON.Vector3(0, 5, -33), scene);
     camera.setTarget(new BABYLON.Vector3(0, 5, 0));
     camera.attachControl(canvas, true);
 
@@ -153,20 +148,14 @@ function createScene() {
     width: 20,
     height: 40
 }, scene);
-field.position.y = 0;
+    field.position.y = 0;
 
-// Création d'un matériau noir
-const fieldMaterial = new BABYLON.StandardMaterial("fieldMat", scene);
-fieldMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0); // Noir
+    // Création d'un matériau noir
+    const fieldMaterial = new BABYLON.StandardMaterial("fieldMat", scene);
+    fieldMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0); // Noir
 
-// Application du matériau au sol
-field.material = fieldMaterial;
-    
-    // const fieldMat = new BABYLON.StandardMaterial("fieldMat", scene);
-    // fieldMat.diffuseColor = new BABYLON.Color3(0, 0.05, 0.1);
-    // fieldMat.specularColor = new BABYLON.Color3(0, 0.8, 1); // reflets
-    // fieldMat.emissiveColor = new BABYLON.Color3(0, 0.3, 0.6);
-    // field.material = fieldMat;
+    // Application du matériau au sol
+    field.material = fieldMaterial;
 
     const paddle = BABYLON.MeshBuilder.CreateBox("paddle", {
         width: 2,
@@ -178,8 +167,8 @@ field.material = fieldMaterial;
     paddle.position.z = 0;
 
     const paddleMat = new BABYLON.StandardMaterial("paddleMat", scene);
-    paddleMat.diffuseColor = new BABYLON.Color3(1, 0, 0);   // Rouge vif par exemple
-    paddleMat.emissiveColor = new BABYLON.Color3(1, 0, 0);  // Pour qu’ils "émettent" cette couleur
+    paddleMat.diffuseColor =new BABYLON.Color3(0.4, 0.5, 0.8);
+    paddleMat.emissiveColor = new BABYLON.Color3(0.4, 0.5, 0.8);
     paddleMat.alpha = 0.7;                                  // Un peu transparent pour effet stylé
     paddle.material = paddleMat;
 
@@ -203,18 +192,8 @@ field.material = fieldMaterial;
     ball.position = new BABYLON.Vector3(0, tunnelHeight / 2, 0);
 
     const ballMat = new BABYLON.StandardMaterial("ballMat", scene);
-    ballMat.emissiveColor = new BABYLON.Color3(1, 1, 0);
+    ballMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
     ball.material = ballMat;
-    // const net = BABYLON.MeshBuilder.CreateBox("net", {
-    //     width: tunnelWidth,
-    //     height: 1.5,
-    //     depth: 0.1
-    // }, scene);
-
-    // net.position.y = 0.5;  // Hauteur au-dessus du sol
-    // net.position.z = 0;    // Milieu du terrain
-
-    // net.material = chromeMaterial;
 
     // Coordonnées des coins du terrain
     const groundWidth = 20;
@@ -241,32 +220,30 @@ field.material = fieldMaterial;
     neonMaterial.emissiveColor = new BABYLON.Color3(0.2, 0.6, 1.0); // Rouge néon
     neonMaterial.disableLighting = true; // Ignore les lumières de la scène
     groundLines.color = neonMaterial.emissiveColor;
+    
+// Plan invisible pour le pick, positionné à la profondeur du paddle
+    const paddlePlane = BABYLON.MeshBuilder.CreatePlane("paddlePlane", { size: 100 }, scene);
+    paddlePlane.position.z = -20;
+    paddlePlane.isVisible = false;
+    paddlePlane.isPickable = true;
+
+    // Écoute le mouvement de la souris
+     scene.onPointerMove = function () {
+        const pick = scene.pick(scene.pointerX, scene.pointerY, (mesh) => mesh === paddlePlane);
+        if (pick && pick.pickedPoint) {
+            targetPaddlePos.x = pick.pickedPoint.x;
+            targetPaddlePos.y = pick.pickedPoint.y;
+        }
+    };
 
     return { scene, paddle, iaPaddle, ball, tunnelWidth, tunnelHeight };
 }
 
 const { scene, paddle, iaPaddle, ball, tunnelWidth, tunnelHeight } = createScene();
 createBuildingsAroundField(scene, tunnelWidth, 40); // 40 = longueur du terrain
-const keys = {};
-const speed = 0.3;
 
-window.addEventListener("keydown", (e) => keys[e.key.toLowerCase()] = true);
-window.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
 
 engine.runRenderLoop(() => {
-    if (keys["a"] && paddle.position.x > -tunnelWidth / 2 + 1) {
-        paddle.position.x -= speed;
-    }
-    if (keys["d"] && paddle.position.x < tunnelWidth / 2 - 1) {
-        paddle.position.x += speed;
-    }
-
-    if (keys["w"] && paddle.position.y < tunnelHeight - 1) {
-        paddle.position.y += speed;
-    }
-    if (keys["s"] && paddle.position.y > 1) {
-        paddle.position.y -= speed;
-    }
 
     paddle.position.z = -20;
     iaPaddle.position.z = 20;
@@ -320,8 +297,26 @@ engine.runRenderLoop(() => {
     iaPaddle.position.x = Math.max(-tunnelWidth / 2 + 1, Math.min(tunnelWidth / 2 - 1, iaPaddle.position.x));
     iaPaddle.position.y = Math.max(1, Math.min(tunnelHeight - 1, iaPaddle.position.y));
 
+// Déplacement fluide du paddle vers la souris (X et Y uniquement)
+    paddle.position.x += (targetPaddlePos.x - paddle.position.x) * 0.4;
+    paddle.position.y += (targetPaddlePos.y - paddle.position.y) * 0.4;
 
-    scene.render();
+    // Z fixe (paddle du joueur)
+    paddle.position.z = -20;
+
+   // Vérifie si la balle sort du terrain
+if (ball.position.z > 30|| ball.position.z < -30) {
+    // Remettre la balle au centre
+    ball.position = new BABYLON.Vector3(0, tunnelHeight / 2, 0);
+
+    // Réinitialiser la vitesse avec une direction aléatoire
+    const randomX = (Math.random() - 0.5) * 0.2;
+    const randomY = (Math.random() - 0.5) * 0.2;
+    const directionZ = ball.position.z > 20.5 ? -0.3 : 0.3; // Revenir vers le joueur ou IA
+
+    ballVelocity = new BABYLON.Vector3(randomX, randomY, directionZ);
+}
+        scene.render();
 });
 
 window.addEventListener("resize", () => engine.resize());
