@@ -8,6 +8,72 @@ const ballSpeed = 0.2;
 let isWaitingAfterGoal = false;
 let gameStarted = false;
 
+let scoreLeft = 0;
+let scoreRight = 0;
+
+let fontDataGlobal = null;
+let myText = null;
+let myText2 = null;
+
+function createInitialScoreText() {
+  fetch("https://assets.babylonjs.com/fonts/Droid Sans_Regular.json")
+    .then(response => response.json())
+    .then(fontData => {
+      fontDataGlobal = fontData;
+
+      myText = BABYLON.MeshBuilder.CreateText("myText", scoreLeft.toString(), fontDataGlobal, {
+        size: 5,
+        resolution: 64,
+        depth: 1,
+      });
+
+      myText2 = BABYLON.MeshBuilder.CreateText("myText2", scoreRight.toString(), fontDataGlobal, {
+        size: 5,
+        resolution: 64,
+        depth: 1,
+      });
+
+      const mat = new BABYLON.StandardMaterial("mat", scene);
+      mat.diffuseTexture = new BABYLON.VideoTexture("vidtex", "https://assets.babylonjs.com/textures/babylonjs.mp4", scene, true, true);
+      myText.material = mat;
+      myText2.material = mat;
+
+      myText.position = new BABYLON.Vector3(8, 2, 4);
+      myText2.position = new BABYLON.Vector3(-8, 2, 4);
+    });
+}
+
+function updateScoreTextMeshes() {
+  if (!fontDataGlobal) return;  // Police pas encore chargée
+
+  if (myText) myText.dispose();
+  if (myText2) myText2.dispose();
+
+  myText = BABYLON.MeshBuilder.CreateText("myText", scoreLeft.toString(), fontDataGlobal, {
+    size: 5,
+    resolution: 64,
+    depth: 1,
+  });
+
+  myText2 = BABYLON.MeshBuilder.CreateText("myText2", scoreRight.toString(), fontDataGlobal, {
+    size: 5,
+    resolution: 64,
+    depth: 1,
+  });
+
+  const mat = new BABYLON.StandardMaterial("mat", scene);
+  mat.diffuseTexture = new BABYLON.VideoTexture("vidtex", "https://assets.babylonjs.com/textures/babylonjs.mp4", scene, true, true);
+  myText.material = mat;
+  myText2.material = mat;
+
+  myText.position = new BABYLON.Vector3(8, 2, 4);
+  myText2.position = new BABYLON.Vector3(-8, 2, 4);
+}
+
+createInitialScoreText();
+
+
+
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -101,9 +167,6 @@ function createLight(position, rotation, color, name, scene) {
 
 function createScene() {
     const scene = new BABYLON.Scene(engine);
-    // scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://assets.babylonjs.com/environments/studio.env", scene);
-    // scene.environmentIntensity = 0
-    // scene.environmentTexture = null;
     scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
     
     const rightPaddleMaterial = new BABYLON.PBRMaterial("rightPaddleMat", scene);
@@ -149,6 +212,7 @@ function createScene() {
     new BABYLON.Vector3(0, 0, 0),
     scene
 );
+
     camera.attachControl(canvas, true);
     scene.camera = camera;
     createLight(new BABYLON.Vector3(-8, 5.2, 5), new BABYLON.Vector3(0, 0, 0), BABYLON.Color3.White(), "light1" ,scene);
@@ -189,33 +253,61 @@ function createScene() {
     }, scene);
 
     const mat = new BABYLON.StandardMaterial("mat" + i, scene);
-    // mat.emissiveColor = new BABYLON.Color3(Math.random(), Math.random(), Math.random());
     sphere.material = mat;
 
     sphere.isVisible = false;
     scene.explosionSpheres.push(sphere);
-
-}
-    fetch("https://assets.babylonjs.com/fonts/Droid Sans_Regular.json")
-    .then(response => response.json())
-    .then(fontData => {
-    const writer = new MeshWriter(scene, {
-      scale: 0.01,
-      font: fontData
-    });
-    const myText = writer.addText("HELLO WORLD", {
-      anchor: MeshWriter.Anchor.Center,
-      position: new BABYLON.Vector3(0, 2, 0),
-      depth: 0.2,
-      color: "#ff66cc"
-    });
-    scene.addMesh(myText);
-  });
-
+    }
+    dynamicTexture = new BABYLON.DynamicTexture("dtScore", { width:512, height:256 }, scene, false);
+    dynamicTexture.hasAlpha = true;
+    
     return scene;
 };
 
 const scene = createScene();
+
+let scoreTextMesh;
+
+const createScoreText = () => {
+  const Writer = BABYLON.MeshWriter(scene, { scale: 1.5 });
+  const text = `${scoreLeft} - ${scoreRight}`;
+  const scoreText = new Writer(text, {
+    "letter-height": 3,
+    color: "#ffffff",
+    anchor: "center",
+    "letter-thickness": 0.5
+  });
+
+  scoreTextMesh = scoreText.getMesh();
+  scoreTextMesh.position.set(0, 12, 0); // au-dessus du terrain
+  scoreTextMesh.lookAt(camera.position);
+};
+
+function updateScoreTextMeshes() {
+  if (!fontDataGlobal) return;
+
+  // 1) Création des NUEVOS meshes (synchrones, rapide)
+  const nextText  = BABYLON.MeshBuilder.CreateText("myTextNext",  scoreLeft.toString(),  fontDataGlobal, { size:5, resolution:64, depth:1 });
+  const nextText2 = BABYLON.MeshBuilder.CreateText("myText2Next", scoreRight.toString(), fontDataGlobal, { size:5, resolution:64, depth:1 });
+
+  // 2) Applique la même vidéo/position à ces nouveaux meshes
+  const videoMat = new BABYLON.StandardMaterial("matScoreVideo", scene);
+  videoMat.diffuseTexture = new BABYLON.VideoTexture("vidtex", "https://assets.babylonjs.com/textures/babylonjs.mp4", scene, true, true);
+  nextText.material  = videoMat;
+  nextText2.material = videoMat;
+  nextText.position.set(8, 2, 4);
+  nextText2.position.set(-8, 2, 4);
+
+  // 3) Maintenant que les nouveaux sont prêts, supprime les anciens
+  if (myText)  myText.dispose();
+  if (myText2) myText2.dispose();
+
+  // 4) Remplace les références
+  myText  = nextText;
+  myText2 = nextText2;
+}
+
+
 
 const keys = {};
 
@@ -289,6 +381,12 @@ engine.runRenderLoop(() => {
     }
 
     if (!isWaitingAfterGoal && Math.abs(scene.ball.position.x) > playWidth / 2 + 1) {
+         if (scene.ball.position.x > 0) {
+        scoreRight++;
+    } else {
+        scoreLeft++;
+    }
+    updateScoreTextMeshes();
         isWaitingAfterGoal = true;
 
         const explosionDuration = 1000;
