@@ -243,29 +243,27 @@ const { scene, paddle, iaPaddle, ball, tunnelWidth, tunnelHeight } = createScene
 createBuildingsAroundField(scene, tunnelWidth, 40); // 40 = longueur du terrain
 
 
+const BALL_SPEED = 0.3; // Vitesse constante de la balle
+
 engine.runRenderLoop(() => {
+    // 🔁 Normalise la direction à chaque frame pour garder une vitesse constante
+    const direction = ballVelocity.normalize(); // copie normalisée
+    ballVelocity = direction.scale(BALL_SPEED); // nouvelle vitesse constante
 
-    paddle.position.z = -20;
-    iaPaddle.position.z = 20;
-
-    // Appliquer la gravité
-    ballVelocity.y += gravity;
-
-    // Déplacer la balle
+    // Déplacement de la balle
     ball.position.addInPlace(ballVelocity);
 
-    // Rebonds contre les murs gauche/droite
+    // Rebonds contre les murs
     if (ball.position.x <= -tunnelWidth / 2 + 0.5 || ball.position.x >= tunnelWidth / 2 - 0.5) {
         ballVelocity.x *= -1;
     }
 
-    // Rebonds sol/plafond
     if (ball.position.y <= 0.5 || ball.position.y >= tunnelHeight - 0.5) {
         ballVelocity.y *= -1;
     }
 
-    // Collision avec paddle joueur
-    if (Math.abs(ball.position.z - paddle.position.z) < 0.5 &&
+    // Collision paddle joueur
+    if (Math.abs(ball.position.z - paddle.position.z) < 1 &&
         Math.abs(ball.position.x - paddle.position.x) < 1.5 &&
         Math.abs(ball.position.y - paddle.position.y) < 1.5) {
         ballVelocity.z *= -1;
@@ -273,50 +271,25 @@ engine.runRenderLoop(() => {
         ballVelocity.y += (ball.position.y - paddle.position.y) * 0.05;
     }
 
-    // Collision avec paddle IA
-    if (Math.abs(ball.position.z - iaPaddle.position.z) < 0.5 &&
+    // Collision paddle IA
+    if (Math.abs(ball.position.z - iaPaddle.position.z) < 1 &&
         Math.abs(ball.position.x - iaPaddle.position.x) < 1.5 &&
         Math.abs(ball.position.y - iaPaddle.position.y) < 1.5) {
         ballVelocity.z *= -1;
         ballVelocity.x += (ball.position.x - iaPaddle.position.x) * 0.05;
         ballVelocity.y += (ball.position.y - iaPaddle.position.y) * 0.05;
     }
-    // L'IA suit la balle (en X et Y seulement)
-    if (iaPaddle.position.x < ball.position.x - 0.1) {
-        iaPaddle.position.x += iaSpeed;
-    } else if (iaPaddle.position.x > ball.position.x + 0.1) {
-        iaPaddle.position.x -= iaSpeed;
-    }
 
-    if (iaPaddle.position.y < ball.position.y - 0.1) {
-        iaPaddle.position.y += iaSpeed;
-    } else if (iaPaddle.position.y > ball.position.y + 0.1) {
-        iaPaddle.position.y -= iaSpeed;
-    }
-    // Limites du terrain pour l'IA
-    iaPaddle.position.x = Math.max(-tunnelWidth / 2 + 1, Math.min(tunnelWidth / 2 - 1, iaPaddle.position.x));
-    iaPaddle.position.y = Math.max(1, Math.min(tunnelHeight - 1, iaPaddle.position.y));
+    // IA suit la balle
+    iaPaddle.position.x += (ball.position.x - iaPaddle.position.x) * 0.05;
+    iaPaddle.position.y += (ball.position.y - iaPaddle.position.y) * 0.05;
 
-// Déplacement fluide du paddle vers la souris (X et Y uniquement)
-    paddle.position.x += (targetPaddlePos.x - paddle.position.x) * 0.4;
-    paddle.position.y += (targetPaddlePos.y - paddle.position.y) * 0.4;
+    // Paddle joueur suit la souris
+    paddle.position.x += (targetPaddlePos.x - paddle.position.x) * 0.2;
+    paddle.position.y += (targetPaddlePos.y - paddle.position.y) * 0.2;
 
-    // Z fixe (paddle du joueur)
-    paddle.position.z = -20;
-
-   // Vérifie si la balle sort du terrain
-if (ball.position.z > 30|| ball.position.z < -30) {
-    // Remettre la balle au centre
-    ball.position = new BABYLON.Vector3(0, tunnelHeight / 2, 0);
-
-    // Réinitialiser la vitesse avec une direction aléatoire
-    const randomX = (Math.random() - 0.5) * 0.2;
-    const randomY = (Math.random() - 0.5) * 0.2;
-    const directionZ = ball.position.z > 20.5 ? -0.3 : 0.3; // Revenir vers le joueur ou IA
-
-    ballVelocity = new BABYLON.Vector3(randomX, randomY, directionZ);
-}
-        scene.render();
+    scene.render();
 });
+
 
 window.addEventListener("resize", () => engine.resize());

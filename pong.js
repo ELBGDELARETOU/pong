@@ -4,9 +4,13 @@ const engine = new BABYLON.Engine(canvas, true);
 const boxes = [];
 const playWidth = 19;
 const playHeight = 3;
-const ballSpeed = 0.2;
+const ballSpeed = 0.15;
+const ballInitialSpeed = 0.2; // Nouvelle variable pour la vitesse initiale de la balle
 let isWaitingAfterGoal = false;
 let gameStarted = false;
+let lastCollisionTime = 0; // Nouveau : pour éviter les collisions multiples
+let hasCollidedLeft = false; // Flag pour éviter les collisions multiples
+let hasCollidedRight = false; // Flag pour éviter les collisions multiples
 
 let scoreLeft = 0;
 let scoreRight = 0;
@@ -43,36 +47,7 @@ function createInitialScoreText() {
     });
 }
 
-function updateScoreTextMeshes() {
-  if (!fontDataGlobal) return;  // Police pas encore chargée
-
-  if (myText) myText.dispose();
-  if (myText2) myText2.dispose();
-
-  myText = BABYLON.MeshBuilder.CreateText("myText", scoreLeft.toString(), fontDataGlobal, {
-    size: 5,
-    resolution: 64,
-    depth: 1,
-  });
-
-  myText2 = BABYLON.MeshBuilder.CreateText("myText2", scoreRight.toString(), fontDataGlobal, {
-    size: 5,
-    resolution: 64,
-    depth: 1,
-  });
-
-  const mat = new BABYLON.StandardMaterial("mat", scene);
-  mat.diffuseTexture = new BABYLON.VideoTexture("vidtex", "https://assets.babylonjs.com/textures/babylonjs.mp4", scene, true, true);
-  myText.material = mat;
-  myText2.material = mat;
-
-  myText.position = new BABYLON.Vector3(8, 2, 4);
-  myText2.position = new BABYLON.Vector3(-8, 2, 4);
-}
-
 createInitialScoreText();
-
-
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -136,8 +111,6 @@ async function countdown() {
     }
 }
 
-
-
 function createLight(position, rotation, color, name, scene) {
     color = new BABYLON.Color3(1.0, 0.1, 0.5);
     const box = BABYLON.MeshBuilder.CreateBox("box" + name, {
@@ -163,8 +136,6 @@ function createLight(position, rotation, color, name, scene) {
     boxes.push({ box, light, material: lightMaterial });
 }
 
-
-
 function createScene() {
     const scene = new BABYLON.Scene(engine);
     scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
@@ -172,16 +143,16 @@ function createScene() {
     const rightPaddleMaterial = new BABYLON.PBRMaterial("rightPaddleMat", scene);
     rightPaddleMaterial.metallic = 1.0;
     rightPaddleMaterial.roughness = 0.2;
-    rightPaddleMaterial.albedoColor = new BABYLON.Color3(0.1, 0.6, 1); // Bleu néon
-    rightPaddleMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.6, 1); // même couleur pour le glow
+    rightPaddleMaterial.albedoColor = new BABYLON.Color3(0.1, 0.6, 1);
+    rightPaddleMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.6, 1);
    
     const leftPaddleMaterial = new BABYLON.PBRMaterial("leftPaddleMat", scene);
     leftPaddleMaterial.metallic = 1.0;
     leftPaddleMaterial.roughness = 0.2;
-    leftPaddleMaterial.albedoColor = new BABYLON.Color3(1, 0.1, 0.1); // Rouge néon
-    leftPaddleMaterial.emissiveColor = new BABYLON.Color3(1, 0.1, 0.1); // Rouge néon
+    leftPaddleMaterial.albedoColor = new BABYLON.Color3(1, 0.1, 0.1);
+    leftPaddleMaterial.emissiveColor = new BABYLON.Color3(1, 0.1, 0.1);
     
-    const paddleOptions = { width: 0.2, height: 0.3, depth: 1 };
+    const paddleOptions = { width: 0.2, height: 0.3, depth: 1.3 };
 
     const rightPaddle = BABYLON.MeshBuilder.CreateBox("rightPaddle", paddleOptions, scene);
     rightPaddle.position.x = -playWidth / 2 + 0.2;
@@ -203,8 +174,6 @@ function createScene() {
     ground.material = mirrorMat;
     scene.ground = ground;
 
-
-
     const camera = new BABYLON.ArcRotateCamera("arcCam", 
     Math.PI / 2 + Math.PI,
     Math.PI / 3,
@@ -220,19 +189,17 @@ function createScene() {
     createLight(new BABYLON.Vector3(2.7, 5.2, 5), new BABYLON.Vector3(0, 0, 0), BABYLON.Color3.White(), "light3",scene);
     createLight(new BABYLON.Vector3(8, 5.2, 5), new BABYLON.Vector3(0, 0, 0), BABYLON.Color3.White(), "light2",scene);
     
-    let ctd = 0;
-    if (ctd++ == 0)
-        countdown();
+    countdown();
 
     const ball = BABYLON.MeshBuilder.CreateSphere("ball", { diameter: 0.3 }, scene);
     
     setTimeout(() => {
-    scene.ballVelocity = new BABYLON.Vector3(
-        (Math.random() > 0.5 ? 1 : -1) * 0.2,
-        0,
-        (Math.random() - 0.5) * 0.04
-    );
-    gameStarted = true;
+        scene.ballVelocity = new BABYLON.Vector3(
+            (Math.random() > 0.5 ? 1 : -1) * ballInitialSpeed, // Utilise la nouvelle vitesse plus lente
+            0,
+            (Math.random() - 0.5) * 0.02 // Réduit aussi la vitesse Z
+        );
+        gameStarted = true;
     }, 2500);
     
     ball.position = new BABYLON.Vector3(0, 0.5, 0);
@@ -247,16 +214,16 @@ function createScene() {
 
     const numberOfSpheres = 500;
     for (let i = 0; i < numberOfSpheres; ++i) {
-    const sphere = BABYLON.MeshBuilder.CreateSphere("particle", {
-        diameter: 0.2 + Math.random() * 0.4,
-        segments: 6
-    }, scene);
+        const sphere = BABYLON.MeshBuilder.CreateSphere("particle", {
+            diameter: 0.2 + Math.random() * 0.4,
+            segments: 6
+        }, scene);
 
-    const mat = new BABYLON.StandardMaterial("mat" + i, scene);
-    sphere.material = mat;
+        const mat = new BABYLON.StandardMaterial("mat" + i, scene);
+        sphere.material = mat;
 
-    sphere.isVisible = false;
-    scene.explosionSpheres.push(sphere);
+        sphere.isVisible = false;
+        scene.explosionSpheres.push(sphere);
     }
     dynamicTexture = new BABYLON.DynamicTexture("dtScore", { width:512, height:256 }, scene, false);
     dynamicTexture.hasAlpha = true;
@@ -279,18 +246,16 @@ const createScoreText = () => {
   });
 
   scoreTextMesh = scoreText.getMesh();
-  scoreTextMesh.position.set(0, 12, 0); // au-dessus du terrain
+  scoreTextMesh.position.set(0, 12, 0);
   scoreTextMesh.lookAt(camera.position);
 };
 
 function updateScoreTextMeshes() {
   if (!fontDataGlobal) return;
 
-  // 1) Création des NUEVOS meshes (synchrones, rapide)
   const nextText  = BABYLON.MeshBuilder.CreateText("myTextNext",  scoreLeft.toString(),  fontDataGlobal, { size:5, resolution:64, depth:1 });
   const nextText2 = BABYLON.MeshBuilder.CreateText("myText2Next", scoreRight.toString(), fontDataGlobal, { size:5, resolution:64, depth:1 });
 
-  // 2) Applique la même vidéo/position à ces nouveaux meshes
   const videoMat = new BABYLON.StandardMaterial("matScoreVideo", scene);
   videoMat.diffuseTexture = new BABYLON.VideoTexture("vidtex", "https://assets.babylonjs.com/textures/babylonjs.mp4", scene, true, true);
   nextText.material  = videoMat;
@@ -298,16 +263,12 @@ function updateScoreTextMeshes() {
   nextText.position.set(8, 2, 4);
   nextText2.position.set(-8, 2, 4);
 
-  // 3) Maintenant que les nouveaux sont prêts, supprime les anciens
   if (myText)  myText.dispose();
   if (myText2) myText2.dispose();
 
-  // 4) Remplace les références
   myText  = nextText;
   myText2 = nextText2;
 }
-
-
 
 const keys = {};
 
@@ -322,7 +283,6 @@ window.addEventListener("keyup", (e) => {
 const leftPaddle = scene.getMeshByName("leftPaddle");
 const rightPaddle = scene.getMeshByName("rightPaddle");
 
-
 async function resetBallWithDelay() {
     scene.ball.position = new BABYLON.Vector3(0, 0.5, 0);
     scene.ballVelocity.set(0, 0, 0);
@@ -330,20 +290,27 @@ async function resetBallWithDelay() {
     await sleep(200);
 
     scene.ballVelocity = new BABYLON.Vector3(
-        (Math.random() > 0.5 ? 1 : -1) * 0.2,
+        (Math.random() > 0.5 ? 1 : -1) * ballInitialSpeed, // Utilise la nouvelle vitesse plus lente
         0,
-        (Math.random() - 0.5) * 0.04
+        (Math.random() - 0.5) * 0.02 // Réduit aussi la vitesse Z
     );
     isWaitingAfterGoal = false;
 }
 
-
 engine.runRenderLoop(() => {
     const minZ = -4.5;
     const maxZ = 4.5;
-    const accelerationFactor = 1.05;
+    const accelerationFactor = 1.02; // Réduit l'accélération
+    const maxSpeed = 0.8; // Réduit la vitesse maximale
     const ball = scene.ball;
     const velocity = scene.ballVelocity;
+
+    function clampVelocity() {
+        const speed = velocity.length();
+        if (speed > maxSpeed) {
+            velocity.scaleInPlace(maxSpeed / speed);
+        }
+    }
 
     if (keys["s"] && rightPaddle.position.z - ballSpeed >= minZ) {
         rightPaddle.position.z -= ballSpeed;
@@ -357,36 +324,67 @@ engine.runRenderLoop(() => {
     if (keys["i"] && leftPaddle.position.z + ballSpeed <= maxZ) {
         leftPaddle.position.z += ballSpeed;
     }
-    
+
     if (gameStarted) {
-    ball.position.addInPlace(velocity);
+        ball.position.addInPlace(velocity);
     }
 
     if (ball.position.z <= minZ || ball.position.z >= maxZ) {
         velocity.z *= -1;
     }
 
-    if (ball.intersectsMesh(leftPaddle, false) && velocity.x > 0) {
-        velocity.x *= -accelerationFactor;
-        const offset = ball.position.z - leftPaddle.position.z;
-        velocity.z = offset * 0.1 * accelerationFactor;
-        playLightWave(3, -1);
+    // Reset des flags si la balle s'éloigne des raquettes
+    if (ball.position.x < leftPaddle.position.x - 1) {
+        hasCollidedLeft = false;
+    }
+    if (ball.position.x > rightPaddle.position.x + 1) {
+        hasCollidedRight = false;
     }
 
-    if (ball.intersectsMesh(rightPaddle, false) && velocity.x < 0) {
-        velocity.x *= -accelerationFactor;
+    // Détection de collision simple par position
+    const ballRadius = 0.15; // Rayon de la balle
+    const paddleHalfWidth = 0.1; // Demi-largeur de la raquette
+    const paddleHalfDepth = 0.65; // Demi-profondeur de la raquette
+
+    // Collision avec raquette gauche
+    if (velocity.x > 0 && 
+        !hasCollidedLeft &&
+        ball.position.x + ballRadius >= leftPaddle.position.x - paddleHalfWidth &&
+        ball.position.x - ballRadius <= leftPaddle.position.x + paddleHalfWidth &&
+        ball.position.z >= leftPaddle.position.z - paddleHalfDepth &&
+        ball.position.z <= leftPaddle.position.z + paddleHalfDepth) {
+        
+        velocity.x = -Math.abs(velocity.x) * accelerationFactor; // Force la direction négative
+        const offset = ball.position.z - leftPaddle.position.z;
+        velocity.z = offset * 0.1;
+        clampVelocity();
+        playLightWave(3, -1);
+        hasCollidedLeft = true;
+    }
+
+    // Collision avec raquette droite
+    if (velocity.x < 0 && 
+        !hasCollidedRight &&
+        ball.position.x - ballRadius <= rightPaddle.position.x + paddleHalfWidth &&
+        ball.position.x + ballRadius >= rightPaddle.position.x - paddleHalfWidth &&
+        ball.position.z >= rightPaddle.position.z - paddleHalfDepth &&
+        ball.position.z <= rightPaddle.position.z + paddleHalfDepth) {
+        
+        velocity.x = Math.abs(velocity.x) * accelerationFactor; // Force la direction positive
         const offset = ball.position.z - rightPaddle.position.z;
-        velocity.z = offset * 0.1 * accelerationFactor;
+        velocity.z = offset * 0.1;
+        clampVelocity();
         playLightWave(0, 1);
+        hasCollidedRight = true;
     }
 
     if (!isWaitingAfterGoal && Math.abs(scene.ball.position.x) > playWidth / 2 + 1) {
-         if (scene.ball.position.x > 0) {
-        scoreRight++;
-    } else {
-        scoreLeft++;
-    }
-    updateScoreTextMeshes();
+        if (scene.ball.position.x > 0) {
+            scoreRight++;
+        } else {
+            scoreLeft++;
+        }
+        updateScoreTextMeshes();
         isWaitingAfterGoal = true;
 
         const explosionDuration = 1000;
@@ -404,29 +402,28 @@ engine.runRenderLoop(() => {
             ).normalize().scale(0.5 + Math.random() * 1.5);
 
             activeSpheres.push({ sphere, dir });
-    });
+        });
 
-    const explosionCallback = () => {
-        const elapsed = Date.now() - startTime;
-        if (elapsed > explosionDuration) {
-            activeSpheres.forEach(obj => {
-                obj.sphere.isVisible = false;
-            });
-            scene.onBeforeRenderObservable.removeCallback(explosionCallback);
-        } else {
-            activeSpheres.forEach(obj => {
-                obj.sphere.position.addInPlace(obj.dir);
-            });
-        }
-    };
+        const explosionCallback = () => {
+            const elapsed = Date.now() - startTime;
+            if (elapsed > explosionDuration) {
+                activeSpheres.forEach(obj => {
+                    obj.sphere.isVisible = false;
+                });
+                scene.onBeforeRenderObservable.removeCallback(explosionCallback);
+            } else {
+                activeSpheres.forEach(obj => {
+                    obj.sphere.position.addInPlace(obj.dir);
+                });
+            }
+        };
 
-    scene.onBeforeRenderObservable.add(explosionCallback);
+        scene.onBeforeRenderObservable.add(explosionCallback);
 
-    resetBallWithDelay();
-}
+        resetBallWithDelay();
+    }
+
     scene.render();
 });
-
-
 
 window.addEventListener("resize", () => engine.resize());
