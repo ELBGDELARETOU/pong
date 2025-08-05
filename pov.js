@@ -8,7 +8,7 @@ const canvas = document.getElementById("renderCanvas");
 
         let scoreLeft = 0;
         let scoreRight = 0;
-        const SCORE_LIMIT = 5;
+        const SCORE_LIMIT = 2;
         let gameEnded = false;
         let fontDataGlobal = null;
         let myText = null;
@@ -52,9 +52,7 @@ const canvas = document.getElementById("renderCanvas");
             if (gameOverText) {
                 gameOverText.dispose();
             }
-        
             if (!fontDataGlobal || !scene) return;
-        
             try {
                 gameOverText = BABYLON.MeshBuilder.CreateText("gameOverText", winner, fontDataGlobal, {
                     size: 2.5,
@@ -62,14 +60,15 @@ const canvas = document.getElementById("renderCanvas");
                     depth: 0.5
                 }, scene);
             
-                const material = new BABYLON.StandardMaterial("gameOverMat", scene);
-                material.emissiveColor = new BABYLON.Color3(1, 0.5, 0.2);
-                material.diffuseColor = new BABYLON.Color3(0.2, 0.1, 0);
-                gameOverText.material = material;
+            const material = new BABYLON.StandardMaterial("gameOverMat", scene);
+            material.emissiveColor = new BABYLON.Color3(0.2, 0.6, 1); // Bleu lumineux
+            material.diffuseColor = new BABYLON.Color3(0.05, 0.1, 0.2); // Bleu foncé
+            gameOverText.material = material;
+
             
                 gameOverText.position = new BABYLON.Vector3(0, 5, -10);
 
-                gameOverText.rotation.x = -Math.PI / 6;
+                // gameOverText.rotation.x = -Math.PI / 6;
             
             } catch (error) {
                 console.warn("Erreur création texte de fin:", error);
@@ -145,7 +144,6 @@ const canvas = document.getElementById("renderCanvas");
 
         function checkGameEnd() {
             let winner;
-            // console.log("SHOW GAME OVER: ", winner);
             if (scoreLeft >= SCORE_LIMIT) {
                 gameEnded = true;
                 showGameOver("Vous avez gagné!");
@@ -158,10 +156,10 @@ const canvas = document.getElementById("renderCanvas");
             return false;
         }
 
-        function showGameOver(winner) {
-            // winnerText.textContent = winner;
-            // gameOverScreen.style.display = 'flex';
-        }
+        // function showGameOver(winner) {
+        //     // winnerText.textContent = winner;
+        //     // gameOverScreen.style.display = 'flex';
+        // }
 
         function restartGame() {
             // Reset des scores
