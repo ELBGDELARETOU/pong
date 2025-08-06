@@ -1,112 +1,158 @@
 const canvas = document.getElementById("renderCanvas");
-        const engine = new BABYLON.Engine(canvas, true);
+const engine = new BABYLON.Engine(canvas, true);
 
-        let ballVelocity = new BABYLON.Vector3(0.1, 0.2, 0.3);
-        const gravity = -0.003;
-        const iaSpeed = 0.15;
-        let targetPaddlePos = new BABYLON.Vector3();
+let ballVelocity = new BABYLON.Vector3(0.1, 0.2, 0.3);
+const gravity = -0.003;
+const iaSpeed = 0.15;
+let targetPaddlePos = new BABYLON.Vector3();
 
-        let scoreLeft = 0;
-        let scoreRight = 0;
-        const SCORE_LIMIT = 2;
-        let gameEnded = false;
-        let fontDataGlobal = null;
-        let myText = null;
-        let myText2 = null;
-        let scene = null;
-        let gameOverText = null;
+let scoreLeft = 0;
+let scoreRight = 0;
+const SCORE_LIMIT = 5;
+let gameEnded = false;
+let fontDataGlobal = null;
+let myText = null;
+let myText2 = null;
+let scene = null;
+let gameOverText = null;
 
-        // Éléments DOM pour l'écran de fin
-        const gameOverScreen = document.getElementById('gameOverScreen');
-        const winnerText = document.getElementById('winnerText');
+// Éléments DOM pour l'écran de fin
+const gameOverScreen = document.getElementById('gameOverScreen');
+const winnerText = document.getElementById('winnerText');
 
-        async function loadFont() {
-            try {
-                const response = await fetch("https://assets.babylonjs.com/fonts/Droid Sans_Regular.json");
-                fontDataGlobal = await response.json();
-                createInitialScoreText();
-            } catch (error) {
-                console.warn("Erreur de chargement de police:", error);
-                createFallbackScoreDisplay();
-            }
+async function loadFont() {
+    try {
+        const response = await fetch("https://assets.babylonjs.com/fonts/Droid Sans_Regular.json");
+        fontDataGlobal = await response.json();
+        createInitialScoreText();
+    } catch (error) {
+        console.warn("Erreur de chargement de police:", error);
+        createFallbackScoreDisplay();
+    }
+}
+
+function createFallbackScoreDisplay() {
+    if (myText) myText.dispose();
+    if (myText2) myText2.dispose();
+    
+    myText = BABYLON.MeshBuilder.CreateBox("scoreLeft", {width: 2, height: 2, depth: 0.2}, scene);
+    myText2 = BABYLON.MeshBuilder.CreateBox("scoreRight", {width: 2, height: 2, depth: 0.2}, scene);
+    
+    const scoreMaterial = new BABYLON.StandardMaterial("scoreMat", scene);
+    scoreMaterial.emissiveColor = new BABYLON.Color3(0, 1, 1);
+    
+    myText.material = scoreMaterial;
+    myText2.material = scoreMaterial;
+    myText.position.set(-8, 12, 0);
+    myText2.position.set(8, 12, 0);
+}
+
+function showGameOver(winner) {
+    // Supprime l'ancien message s'il existe
+    if (gameOverText) {
+        gameOverText.dispose();
+        gameOverText = null;
+    }
+    if (!scene) return;
+
+    // Dimensions de la texture (agrandies pour contenir les deux textes)
+    const dtWidth = 1024;
+    const dtHeight = 768;
+
+    // On s'assure que la police est bien chargée
+    document.fonts.load("64px Orbitron").then(() => {
+        try {
+            // 1. Crée la texture dynamique
+            const dynamicTexture = new BABYLON.DynamicTexture("dynamicText", { width: dtWidth, height: dtHeight }, scene, false);
+            dynamicTexture.hasAlpha = true;
+
+            // 2. Dessine le texte principal centré
+            const fontStyle = "bold 48px Orbitron";
+            dynamicTexture.drawText(
+                winner,
+                null, // null pour centrer automatiquement horizontalement
+                dtHeight / 2 - 60, // Décalé vers le haut pour laisser place au texte du bas
+                fontStyle,
+                "white",
+                "transparent",
+                true // inverser Y pour corriger l'orientation
+            );
+
+            // 3. Dessine le texte "R pour rejouer" en dessous
+            const smallFontStyle = "24px Orbitron";
+            dynamicTexture.drawText(
+                "R pour rejouer",
+                null, // null pour centrer automatiquement horizontalement
+                dtHeight / 2 + 80, // En dessous du texte principal
+                smallFontStyle,
+                "#CCCCCC", // Couleur plus claire/grise
+                "transparent",
+                true // inverser Y
+            );
+
+            // 4. Crée un matériau et assigne la texture
+            const textMaterial = new BABYLON.StandardMaterial("textMat", scene);
+            textMaterial.diffuseTexture = dynamicTexture;
+            textMaterial.emissiveColor = new BABYLON.Color3(0.2, 0.6, 1);
+            textMaterial.backFaceCulling = false;
+
+            // 5. Crée un plan pour afficher la texture
+            gameOverText = BABYLON.MeshBuilder.CreatePlane("textPlane", {
+                width: 30,
+                height: 24 // Augmenté pour contenir les deux textes
+            }, scene);
+            gameOverText.material = textMaterial;
+
+            // 6. Positionne le plan plus proche et plus grand
+            gameOverText.position = new BABYLON.Vector3(0, 5, -10); // Rapproché de -10 à -5
+            
+            // Agrandir le texte
+            gameOverText.scaling = new BABYLON.Vector3(1.5, 1.5, 1.5); // 50% plus grand
+            
+            // Optionnel: faire face à la caméra pour un meilleur rendu
+            // gameOverText.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+
+        } catch (error) {
+            console.warn("Erreur création texte de fin:", error);
         }
+    }).catch(err => {
+        console.warn("Police Orbitron non chargée:", err);
+    });
+}
 
-        function createFallbackScoreDisplay() {
-            if (myText) myText.dispose();
-            if (myText2) myText2.dispose();
-            
-            myText = BABYLON.MeshBuilder.CreateBox("scoreLeft", {width: 2, height: 2, depth: 0.2}, scene);
-            myText2 = BABYLON.MeshBuilder.CreateBox("scoreRight", {width: 2, height: 2, depth: 0.2}, scene);
-            
-            const scoreMaterial = new BABYLON.StandardMaterial("scoreMat", scene);
-            scoreMaterial.emissiveColor = new BABYLON.Color3(0, 1, 1);
-            
-            myText.material = scoreMaterial;
-            myText2.material = scoreMaterial;
-            myText.position.set(-8, 12, 0);
-            myText2.position.set(8, 12, 0);
-        }
 
-        function showGameOver(winner) {
+function createInitialScoreText() {
+    if (!fontDataGlobal || !scene) return;
+    try {
+        myText = BABYLON.MeshBuilder.CreateText("myText", scoreLeft.toString(), fontDataGlobal, {
+            size: 3,
+            resolution: 32,
+            depth: 0.5
+        }, scene);
+        myText2 = BABYLON.MeshBuilder.CreateText("myText2", scoreRight.toString(), fontDataGlobal, {
+            size: 3,
+            resolution: 32,
+            depth: 0.5
+        }, scene);
 
-            if (gameOverText) {
-                gameOverText.dispose();
-            }
-            if (!fontDataGlobal || !scene) return;
-            try {
-                gameOverText = BABYLON.MeshBuilder.CreateText("gameOverText", winner, fontDataGlobal, {
-                    size: 2.5,
-                    resolution: 32,
-                    depth: 0.5
-                }, scene);
-            
-            const material = new BABYLON.StandardMaterial("gameOverMat", scene);
-            material.emissiveColor = new BABYLON.Color3(0.2, 0.6, 1); // Bleu lumineux
-            material.diffuseColor = new BABYLON.Color3(0.05, 0.1, 0.2); // Bleu foncé
-            gameOverText.material = material;
+        const scoreMaterial = new BABYLON.StandardMaterial("scoreMat", scene);
+        scoreMaterial.emissiveColor = new BABYLON.Color3(0, 1, 1);
+        scoreMaterial.diffuseColor = new BABYLON.Color3(0, 0.5, 0.5);
+        scoreMaterial.disableLighting = false;
 
-            
-                gameOverText.position = new BABYLON.Vector3(0, 5, -10);
-
-                // gameOverText.rotation.x = -Math.PI / 6;
-            
-            } catch (error) {
-                console.warn("Erreur création texte de fin:", error);
-            }
-        }
-
-        function createInitialScoreText() {
-            if (!fontDataGlobal || !scene) return;
-            try {
-                myText = BABYLON.MeshBuilder.CreateText("myText", scoreLeft.toString(), fontDataGlobal, {
-                    size: 3,
-                    resolution: 32,
-                    depth: 0.5
-                }, scene);
-                myText2 = BABYLON.MeshBuilder.CreateText("myText2", scoreRight.toString(), fontDataGlobal, {
-                    size: 3,
-                    resolution: 32,
-                    depth: 0.5
-                }, scene);
-
-                const scoreMaterial = new BABYLON.StandardMaterial("scoreMat", scene);
-                scoreMaterial.emissiveColor = new BABYLON.Color3(0, 1, 1);
-                scoreMaterial.diffuseColor = new BABYLON.Color3(0, 0.5, 0.5);
-                scoreMaterial.disableLighting = false;
-
-                myText.material = scoreMaterial;
-                myText2.material = scoreMaterial;
+        myText.material = scoreMaterial;
+        myText2.material = scoreMaterial;
                 
-                myText.position.set(-8, 12, 0);
-                myText2.position.set(8, 12, 0);
+        myText.position.set(-8, 12, 0);
+        myText2.position.set(8, 12, 0);
                 
-                myText.rotation.x = -Math.PI / 6;
-                myText2.rotation.x = -Math.PI / 6;
-            } catch (error) {
-                console.warn("Erreur création texte:", error);
-                createFallbackScoreDisplay();
-            }
+        // myText.rotation.x = -Math.PI / 6; 
+        // myText2.rotation.x = -Math.PI / 6;
+        } catch (error) {
+            console.warn("Erreur création texte:", error);
+            createFallbackScoreDisplay();
         }
+    }
 
         function updateScoreTextMeshes() {
             if (!fontDataGlobal || !myText || !myText2) return;
@@ -133,8 +179,8 @@ const canvas = document.getElementById("renderCanvas");
                 myText2.material = scoreMaterial;
                 myText.position.set(-8, 12, 0);
                 myText2.position.set(8, 12, 0);
-                myText.rotation.x = -Math.PI / 6;
-                myText2.rotation.x = -Math.PI / 6;
+                // myText.rotation.x = -Math.PI / 6;
+                // myText2.rotation.x = -Math.PI / 6;
             } catch (error) {
                 console.warn("Erreur mise à jour score:", error);
             }
@@ -156,10 +202,6 @@ const canvas = document.getElementById("renderCanvas");
             return false;
         }
 
-        // function showGameOver(winner) {
-        //     // winnerText.textContent = winner;
-        //     // gameOverScreen.style.display = 'flex';
-        // }
 
         function restartGame() {
             // Reset des scores
@@ -275,7 +317,7 @@ const canvas = document.getElementById("renderCanvas");
             pointLight.range = 60;
 
             // Caméra
-            const camera = new BABYLON.UniversalCamera("camera", new BABYLON.Vector3(0, 5, -33), scene);
+            const camera = new BABYLON.UniversalCamera("camera", new BABYLON.Vector3(0, 5, -32.3), scene);
             camera.setTarget(new BABYLON.Vector3(0, 5, 0));
 
             const tunnelWidth = 20;
